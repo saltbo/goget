@@ -6,7 +6,7 @@
 
 ## Usage
 
-![img](/gif.demo)
+![img](/demo.gif)
 
 ## Install
 
