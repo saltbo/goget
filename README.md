@@ -5,7 +5,13 @@
 [![](https://img.shields.io/github/v/release/saltbo/gomods.svg)](https://github.com/saltbo/gomods/releases)
 [![](https://img.shields.io/github/license/saltbo/gomods.svg)](https://github.com/saltbo/gomods/blob/master/LICENSE)
 
-## Install from source
+## Usage
+
+```bash
+gomods gin
+```
+
+## Install
 
 **golang**:
 
@@ -13,26 +19,6 @@
 go install github.com/saltbo/gomods
 ```
 
-## Install the pre-compiled binary
-
-**homebrew tap**:
-
-```bash
-brew install saltbo/bin/gomods
-```
-
-**homebrew** (may not be the latest version):
-
-```bash
-brew install gomods
-```
-
-
-## Usage
-
-```bash
-gomods gin
-```
 ## Contact us
 - [Author Blog](https://saltbo.cn).
 
