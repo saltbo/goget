@@ -6,9 +6,7 @@
 
 ## Usage
 
-```bash
-gomods gin
-```
+![img](/gif.demo)
 
 ## Install
 
