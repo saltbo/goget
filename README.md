@@ -5,6 +5,14 @@
 [![](https://img.shields.io/github/v/release/saltbo/gomods.svg)](https://github.com/saltbo/gomods/releases)
 [![](https://img.shields.io/github/license/saltbo/gomods.svg)](https://github.com/saltbo/gomods/blob/master/LICENSE)
 
+## Install from source
+
+**golang**:
+
+```bash
+go install github.com/saltbo/gomods
+```
+
 ## Install the pre-compiled binary
 
 **homebrew tap**:
@@ -19,9 +27,9 @@ brew install saltbo/bin/gomods
 brew install gomods
 ```
 
+
 ## Usage
 
-### Basic
 ```bash
 gomods gin
 ```
