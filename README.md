@@ -10,8 +10,6 @@
 
 ## Install
 
-**golang**:
-
 ```bash
 go install github.com/saltbo/gomods
 ```
