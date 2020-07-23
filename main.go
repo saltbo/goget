@@ -41,12 +41,12 @@ func main() {
 }
 
 func appAction(c *cli.Context) error {
-	args := c.Args()
-	if len(args) == 0 {
-		return fmt.Errorf("input the keyword that you want serach.")
+	kw := c.Args().First()
+	if kw == "" {
+		return fmt.Errorf("Input the package name that you want serach.")
 	}
 
-	items := pkgSearch(args.First())
+	items := pkgSearch(kw)
 	prompt := promptui.Select{
 		Label: "Select the packages",
 		Items: items,
