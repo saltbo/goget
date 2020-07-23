@@ -29,7 +29,7 @@ type Package struct {
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "gomods"
+	app.Name = "goget"
 	app.Usage = "Find the package you need easily"
 	app.Copyright = "(c) 2019 saltbo.cn"
 	app.Compiled = time.Now()

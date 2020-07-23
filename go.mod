@@ -1,4 +1,4 @@
-module github.com/saltbo/gomods
+module github.com/saltbo/goget
 
 go 1.13
 
