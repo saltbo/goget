@@ -11,7 +11,7 @@
 ## Install
 
 ```bash
-go install github.com/saltbo/goget
+go get github.com/saltbo/goget
 ```
 
 ## Contact us
