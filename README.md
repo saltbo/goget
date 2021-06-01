@@ -11,14 +11,17 @@
 ## Install
 
 ```bash
-go get -u github.com/saltbo/goget
+go install github.com/saltbo/goget
 ```
 
 ## Contact us
+
 - [Author Blog](https://saltbo.cn).
 
 ## Author
+
 - [Saltbo](https://github.com/saltbo)
 
 ## License
+
 - [MIT](https://github.com/saltbo/goget/blob/master/LICENSE)
