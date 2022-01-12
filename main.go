@@ -94,15 +94,15 @@ func pkgSearch(name string) []Package {
 
 	// Find the packages
 	items := make([]Package, 0)
-	doc.Find(".LegacySearchSnippet").Each(func(i int, s *goquery.Selection) {
-		pkg := s.Find("a").Text()
-		intro := s.Find("p").Text()
+	doc.Find(".SearchSnippet").Each(func(i int, s *goquery.Selection) {
+		pkg := s.Find(".SearchSnippet-header-path").Text()
+		intro := s.Find(".SearchSnippet-synopsis").Text()
 		if intro == "" {
 			intro = "-"
 		}
 
 		items = append(items, Package{
-			Name:  strings.Trim(pkg, "\n "),
+			Name:  strings.Trim(pkg, "()\n "),
 			Intro: strings.Trim(intro, "\n ")})
 	})
 	return items
