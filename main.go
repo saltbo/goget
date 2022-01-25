@@ -3,14 +3,14 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
-	"strings"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
+	"github.com/gdamore/tcell/v2"
+	"github.com/go-resty/resty/v2"
 	"github.com/manifoldco/promptui"
+	"github.com/rivo/tview"
 	"github.com/urfave/cli"
 )
 
@@ -24,8 +24,9 @@ var (
 )
 
 type Package struct {
-	Name  string
-	Intro string
+	Name  string `json:"name"`
+	Path  string `json:"path"`
+	Intro string `json:"synopsis"`
 }
 
 func main() {
@@ -41,71 +42,116 @@ func main() {
 	}
 }
 
+var app = tview.NewApplication()
+var console = tview.NewTextView()
+
+func setBoxAttr(box *tview.Box, title string) {
+	box.SetTitle(fmt.Sprintf(" %s ", title))
+	box.SetBackgroundColor(tcell.ColorDefault)
+	box.SetBorder(true)
+	box.SetBorderColor(tcell.ColorDefault)
+	box.SetBackgroundColor(tcell.ColorDefault)
+	box.SetBorderPadding(0, 0, 1, 1)
+}
+
 func appAction(c *cli.Context) error {
-	kw := c.Args().First()
-	if kw == "" {
-		return fmt.Errorf("Input the package name that you want serach.")
-	}
+	console.SetDynamicColors(true).
+		SetRegions(true).
+		SetWordWrap(true).SetChangedFunc(func() {
+		app.Draw()
+	})
+	setBoxAttr(console.Box, "Output")
+	console.SetText("Ready.")
 
-	items := pkgSearch(kw)
-	prompt := promptui.Select{
-		Label: "Select the packages",
-		Items: items,
-		Templates: &promptui.SelectTemplates{
-			Label:    "{{ . }}?",
-			Active:   "\U0001F336 {{ .Name | cyan }} ({{ .Intro | red }})",
-			Inactive: "  {{ .Name | cyan }} ({{ .Intro | red }})",
-			Selected: "\U0001F336 {{ .Name | cyan }}",
-		},
-	}
-	idx, _, err := prompt.Run()
-	if err != nil {
-		return fmt.Errorf("Prompt failed %v\n", err)
-	}
+	searchInput := tview.NewInputField()
+	setBoxAttr(searchInput.Box, "Search")
+	searchInput.SetFieldBackgroundColor(tcell.ColorDefault)
 
-	pkg := items[idx].Name
-	if err := openDoc(pkg); err != nil {
-		return fmt.Errorf("open doc failed: %s", err)
-	}
+	resultTable := tview.NewTable()
+	setBoxAttr(resultTable.Box, "Results")
+	resultTable.SetSelectable(true, false)
 
-	if err := goGet(pkg); err != nil {
-		return fmt.Errorf("go get failed %v\n", err)
+	var currentKeyword = c.Args().First()
+	var appFocus tview.Primitive = searchInput
+	if currentKeyword != "" {
+		searchInput.SetText(currentKeyword)
+		search(currentKeyword, resultTable)
+		appFocus = resultTable
 	}
+	searchInput.SetDoneFunc(func(key tcell.Key) {
+		if searchInput.GetText() == "" || searchInput.GetText() == currentKeyword {
+			return
+		}
 
-	return nil
+		currentKeyword = searchInput.GetText()
+		search(currentKeyword, resultTable)
+	})
+
+	leftLayout := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(searchInput, 3, 1, false).
+		AddItem(resultTable, 0, 3, false)
+
+	rootLayout := tview.NewFlex().
+		AddItem(leftLayout, 0, 1, false).
+		AddItem(tview.NewBox().SetBackgroundColor(tcell.ColorDefault), 2, 1, false).
+		AddItem(console, 0, 1, false)
+
+	var currentTab = 0
+	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyTab {
+			tabs := []tview.Primitive{
+				searchInput, resultTable,
+			}
+			idx := currentTab % len(tabs)
+			app.SetFocus(tabs[idx])
+			currentTab++
+		}
+
+		return event
+	})
+
+	return app.SetRoot(rootLayout, true).SetFocus(appFocus).Run()
+}
+
+func search(kw string, resultTable *tview.Table) {
+	pkgs := pkgSearch(kw)
+
+	resultTable.Clear()
+	for idx, item := range pkgs {
+		resultTable.SetCellSimple(idx, 0, item.Name)
+		resultTable.SetCellSimple(idx, 1, item.Path)
+	}
+	resultTable.SetSelectedFunc(func(row, column int) {
+		// enter to trigger go get
+		modulePath := resultTable.GetCell(row, 1).Text
+		console.Clear()
+		console.Write([]byte(fmt.Sprintf("go get -v %s\n", modulePath)))
+		go goGet(modulePath)
+	})
+	resultTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		//if event.Key() == tcell.KeyTab {
+		//	app.SetFocus(searchInput)
+		//}
+		return event
+	})
+
+	resultTable.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorBlue))
+	resultTable.Select(0, 0)
+	resultTable.ScrollToBeginning()
+	app.SetFocus(resultTable)
 }
 
 func pkgSearch(name string) []Package {
-	// Request the HTML page.
-	res, err := http.Get("https://pkg.go.dev/search?q=" + name)
+	respBody := map[string][]Package{}
+	resp, err := resty.New().R().SetResult(&respBody).Get("https://api.godoc.org/search?q=" + name)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		log.Fatalf("status code error: %d %s", res.StatusCode, res.Status)
+	if resp.StatusCode() != 200 {
+		log.Fatalf("status code error: %d %s", resp.StatusCode(), resp.Status())
 	}
 
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Find the packages
-	items := make([]Package, 0)
-	doc.Find(".SearchSnippet").Each(func(i int, s *goquery.Selection) {
-		pkg := s.Find(".SearchSnippet-header-path").Text()
-		intro := s.Find(".SearchSnippet-synopsis").Text()
-		if intro == "" {
-			intro = "-"
-		}
-
-		items = append(items, Package{
-			Name:  strings.Trim(pkg, "()\n "),
-			Intro: strings.Trim(intro, "\n ")})
-	})
-	return items
+	return respBody["results"]
 }
 
 func openDoc(pkg string) error {
@@ -132,21 +178,8 @@ func openDoc(pkg string) error {
 }
 
 func goGet(pkg string) error {
-	prompt := promptui.Prompt{
-		Label:     fmt.Sprintf("go get %s", pkg),
-		IsConfirm: true,
-		Default:   "y",
-		Templates: &promptui.PromptTemplates{
-			Confirm: "\U0001F336 {{ . | cyan }}?",
-			Success: "\U0001F336 {{ . | cyan }}",
-		},
-	}
-	if _, err := prompt.Run(); err != nil {
-		return nil
-	}
-
 	cmd := exec.Command("go", "get", "-v", pkg)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = console
+	cmd.Stderr = console
 	return cmd.Run()
 }
